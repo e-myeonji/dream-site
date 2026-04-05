@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>3D Animation</title>
+<style>
+body { margin:0; overflow:hidden; background:#111; }
+</style>
+</head>
+<body>
+
+<!-- 🔊 사운드 -->
+<audio id="clickSound" src="/static/hik.mp3"></audio>
+<audio id="flashSound" src="/static/sharara.mp3"></audio>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const count = parseInt(params.get("count")) || 1;
+
+// 🔊 사운드 함수
+const clickSound = document.getElementById("clickSound");
+const flashSound = document.getElementById("flashSound");
+
+function play(sound){
+    sound.currentTime = 0;
+    sound.play().catch(e => {});
+}
+
+// 씬
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+
+// 카메라
+const camera = new THREE.PerspectiveCamera(
+    60,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    3000
+);
+camera.position.set(500, 400, 300);
+camera.lookAt(0, 0, 0);
+
+// 렌더러
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// 조명
+scene.add(new THREE.AmbientLight(0xffffff,1));
+const light = new THREE.DirectionalLight(0xffffff,1.5);
+light.position.set(0,800,0);
+scene.add(light);
+
+// 팬 그룹
+const pan = new THREE.Group();
+scene.add(pan);
+
+// 바닥
+pan.add(new THREE.Mesh(
+    new THREE.CylinderGeometry(230,230,10,64),
+    new THREE.MeshStandardMaterial({color:0x555555})
+));
+
+// 벽
+const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(240,230,50,64,1,true),
+    new THREE.MeshStandardMaterial({color:0x444444, side:THREE.DoubleSide})
+);
+wall.position.y = 25;
+pan.add(wall);
+
+// 손잡이 연결부
+const connector = new THREE.Mesh(
+    new THREE.BoxGeometry(40,20,60),
+    new THREE.MeshStandardMaterial({color:0x333333})
+);
+connector.position.set(0,20,230);
+pan.add(connector);
+
+// 손잡이
+const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(15,15,220,32),
+    new THREE.MeshStandardMaterial({color:0x222222})
+);
+handle.rotation.x = Math.PI/2;
+handle.position.set(0,20,340);
+pan.add(handle);
+
+// 카드
+const cards = [];
+const velocities = [];
+
+const maxPerRow = 3;
+const spacingX = 100;
+const spacingZ = 120;
+
+for(let i=0;i<count;i++){
+    const card = new THREE.Mesh(
+        new THREE.BoxGeometry(60,5,90),
+        new THREE.MeshStandardMaterial({color:0x2222ff})
+    );
+
+    const row = Math.floor(i / maxPerRow);
+    const col = i % maxPerRow;
+
+    const items = Math.min(maxPerRow, count - row * maxPerRow);
+    const offset = (items - 1) * spacingX / 2;
+
+    card.position.set(
+        col * spacingX - offset,
+        10,
+        row * spacingZ - 100
+    );
+
+    cards.push(card);
+    velocities.push(new THREE.Vector3(0,0,0));
+    pan.add(card);
+}
+
+// 상태
+let state = "idle";
+let startTime = 0;
+let flashPlayed = false;
+
+// 플래시
+const flash = document.createElement("div");
+flash.style.position = "fixed";
+flash.style.top = 0;
+flash.style.left = 0;
+flash.style.width = "100%";
+flash.style.height = "100%";
+flash.style.background = "white";
+flash.style.opacity = 0;
+flash.style.pointerEvents = "none";
+document.body.appendChild(flash);
+
+// 클릭
+window.addEventListener("click",()=>{
+    if(state !== "idle") return;
+
+    play(clickSound); // 🔴 클릭 사운드
+
+    state = "flip";
+    startTime = Date.now();
+
+    cards.forEach((c,i)=>{
+        velocities[i].set(
+            (Math.random()-0.5)*10,
+            20 + Math.random()*10,
+            (Math.random()-0.5)*10
+        );
+    });
+});
+
+// 애니메이션
+function animate(){
+    requestAnimationFrame(animate);
+
+    const t = (Date.now() - startTime) / 1000;
+
+    // 팬 튕김
+    if(state === "flip"){
+        if(t < 0.2){
+            pan.rotation.x = -0.3;
+        } else if(t < 0.4){
+            pan.rotation.x = 0.6;
+        } else {
+            state = "fly";
+            startTime = Date.now();
+        }
+    }
+
+    // 카드 날아감
+    if(state === "fly"){
+        cards.forEach((c,i)=>{
+            velocities[i].y -= 0.5;
+            c.position.add(velocities[i]);
+
+            c.rotation.x += 0.2;
+            c.rotation.y += 0.2;
+        });
+
+        const target = cards[0];
+        camera.lookAt(target.position);
+
+        // 섬광
+        if(t > 1){
+            flash.style.opacity = Math.min(1, (t - 1) * 2);
+
+            if(!flashPlayed){
+                play(flashSound); // 🔴 섬광 사운드
+                flashPlayed = true;
+            }
+        }
+
+        // 종료
+        if(t > 2){
+            state = "end";
+            setTimeout(()=>{
+                location.href = "reveal?count=" + count;
+            },1000);
+        }
+    }
+
+    renderer.render(scene, camera);
+}
+
+animate();
+</script>
+
+</body>
+</html>

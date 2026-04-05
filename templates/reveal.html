@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;background:black;overflow:hidden;cursor:pointer;">
+
+<!-- 🔊 사운드 -->
+<audio id="flipSound1" src="/static/huk.mp3"></audio>
+<audio id="flipSound2" src="/static/chara.mp3"></audio>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// 데이터 준비
+let pool = JSON.parse(localStorage.getItem("pool") || "null");
+if(!pool){
+    pool = {{menu|tojson}};
+}
+
+const params = new URLSearchParams(location.search);
+const reqCount = parseInt(params.get("count")) || pool.length;
+const count = Math.min(reqCount, pool.length);
+
+const result = [];
+
+for(let i=0;i<count;i++){
+    const idx = Math.floor(Math.random()*pool.length);
+    result.push(pool[idx]);
+    pool.splice(idx,1);
+}
+
+localStorage.setItem("pool", JSON.stringify(pool));
+localStorage.setItem("result", JSON.stringify(result));
+
+// 🔊 사운드
+const flipSound1 = document.getElementById("flipSound1");
+const flipSound2 = document.getElementById("flipSound2");
+
+function play(sound){
+    sound.currentTime = 0;
+    sound.play().catch(e=>{});
+}
+
+function playFlip(){
+    play(flipSound1);
+    play(flipSound2);
+}
+
+// THREE 기본
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.z = 300;
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// 조명
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+const light = new THREE.DirectionalLight(0xffffff, 0.5);
+light.position.set(200,200,300);
+scene.add(light);
+
+const geometry = new THREE.BoxGeometry(150,200,10);
+
+let card;
+let glow;
+
+// ⭐ 색상
+function getColor(star){
+    if(star==5) return "#6a00ff";
+    if(star==4) return "#ffd700";
+    if(star==3) return "#c0c0c0";
+    if(star==2) return "#b87333";
+    return "#888888";
+}
+
+// ✨ glow 생성
+function createGlow(color){
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 768;
+
+    const ctx = canvas.getContext("2d");
+
+    const grad = ctx.createRadialGradient(256,384,100,256,384,380);
+    grad.addColorStop(0,color);
+    grad.addColorStop(1,"transparent");
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,512,768);
+
+    const texture = new THREE.CanvasTexture(canvas);
+
+    const mat = new THREE.MeshBasicMaterial({
+        map:texture,
+        transparent:true,
+        blending:THREE.AdditiveBlending
+    });
+
+    const geo = new THREE.PlaneGeometry(180,240);
+    const mesh = new THREE.Mesh(geo,mat);
+    mesh.position.z = -5;
+
+    return mesh;
+}
+
+// 카드 생성
+function createCard(data){
+
+    const loader = new THREE.TextureLoader();
+
+    loader.load("/static/cards/"+data.image+"?v="+Date.now(), tex=>{
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 512;
+        canvas.height = 768;
+
+        const ctx = canvas.getContext("2d");
+
+        ctx.drawImage(tex.image,0,0,512,768);
+
+        ctx.fillStyle="black";
+        ctx.font="bold 42px sans-serif";
+        ctx.textAlign="center";
+
+        ctx.fillText(data.name,256,650);
+        ctx.fillText("⭐".repeat(data.star),256,700);
+
+        const finalTex = new THREE.CanvasTexture(canvas);
+
+        const materials = [
+            new THREE.MeshBasicMaterial({color:0x111111}),
+            new THREE.MeshBasicMaterial({color:0x111111}),
+            new THREE.MeshBasicMaterial({color:0x222222}),
+            new THREE.MeshBasicMaterial({color:0x222222}),
+            new THREE.MeshBasicMaterial({map:finalTex}),
+            new THREE.MeshBasicMaterial({color:0x3333ff})
+        ];
+
+        card = new THREE.Mesh(geometry,materials);
+        card.rotation.y = Math.PI;
+        scene.add(card);
+
+        glow = createGlow(getColor(data.star));
+        scene.add(glow);
+    });
+}
+
+let index=0;
+let flipping=false;
+let progress=0;
+let waitTimer=null;
+
+createCard(result[index]);
+
+function nextCard(){
+
+    if(waitTimer){
+        clearTimeout(waitTimer);
+    }
+
+    scene.remove(card);
+    scene.remove(glow);
+
+    index++;
+
+    if(index<result.length){
+        createCard(result[index]);
+        progress=0;
+        camera.position.z=300;
+
+        setTimeout(()=>{
+            playFlip(); // 🔴 다음 카드 뒤집기 시작 사운드
+            flipping=true;
+        },100);
+
+    }else{
+        location.href="result";
+    }
+}
+
+window.addEventListener("click",()=>{
+    if(!flipping) nextCard();
+});
+
+function animate(){
+    requestAnimationFrame(animate);
+
+    if(card && glow){
+        glow.position.x=card.position.x;
+        glow.position.y=card.position.y;
+    }
+
+    if(flipping){
+        progress+=0.04;
+
+        card.rotation.y = Math.PI + Math.PI*progress;
+        card.position.y = Math.sin(progress*Math.PI)*30;
+
+        camera.position.z = 300 - progress*120;
+
+        if(progress>=1){
+            flipping=false;
+            waitTimer=setTimeout(nextCard,2500);
+        }
+    }
+
+    renderer.render(scene,camera);
+}
+
+// 처음 시작
+setTimeout(()=>{
+    playFlip(); // 🔴 첫 카드 사운드
+    flipping=true;
+},700);
+
+animate();
+</script>
+
+</body>
+</html>

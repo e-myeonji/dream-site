@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body{
+    background:#1a1a2e;
+    color:white;
+    padding:40px;
+    text-align:center;
+    font-family:sans-serif;
+}
+
+/* 제목 */
+h1{
+    font-size:42px;
+    margin-bottom:40px;
+}
+
+/* 카드 그리드 */
+.grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap:30px;
+    justify-items:center;
+    margin-bottom:50px;
+}
+
+canvas{
+    width:150px;
+    height:225px;
+}
+
+/* 돌아가기 버튼 */
+.back-btn{
+    padding:16px 40px;
+    font-size:18px;
+    font-weight:bold;
+    border:none;
+    border-radius:14px;
+    cursor:pointer;
+    background: linear-gradient(135deg,#3a86ff,#5f9bff);
+    color:white;
+    box-shadow:0 8px 25px rgba(0,0,0,0.5);
+    transition:0.2s;
+}
+
+.back-btn:hover{
+    transform:scale(1.07);
+    box-shadow:0 10px 30px rgba(0,0,0,0.7);
+}
+</style>
+</head>
+
+<body>
+
+<!-- 🔊 시작 사운드 -->
+<audio id="startSound" src="/static/result.mp3"></audio>
+
+<h1>결과</h1>
+
+<div class="grid" id="box"></div>
+
+<button class="back-btn" onclick="goHome()">돌아가기</button>
+
+<script>
+const data = JSON.parse(localStorage.getItem("result") || "[]");
+const box = document.getElementById("box");
+
+/* 🔊 사운드 */
+const startSound = document.getElementById("startSound");
+
+function playStart(){
+    startSound.currentTime = 0;
+    startSound.play().catch(()=>{});
+}
+
+/* 🔴 로드 시 시도 */
+window.addEventListener("load", ()=>{
+    playStart();
+});
+
+/* 🔴 첫 클릭 fallback */
+document.body.addEventListener("click", ()=>{
+    playStart();
+}, { once:true });
+
+/* 이동 */
+function goHome(){
+    location.href = "/";
+}
+
+/* 색상 */
+function getColor(star){
+    if(star==5) return "rgba(106,0,255,1)";
+    if(star==4) return "rgba(255,215,0,1)";
+    if(star==3) return "rgba(192,192,192,1)";
+    if(star==2) return "rgba(184,115,51,1)";
+    return "rgba(150,150,150,1)";
+}
+
+/* 카드 렌더링 */
+data.forEach(m=>{
+
+    const canvas = document.createElement("canvas");
+    canvas.width=256;
+    canvas.height=384;
+
+    const ctx = canvas.getContext("2d");
+
+    const img = new Image();
+    img.src="/static/cards/"+m.image;
+
+    img.onload=()=>{
+
+        const color = getColor(m.star);
+
+        // 뒤 glow
+        const back = ctx.createRadialGradient(128,192,10,128,192,200);
+        back.addColorStop(0,color);
+        back.addColorStop(1,"transparent");
+
+        ctx.fillStyle = back;
+        ctx.fillRect(0,0,256,384);
+
+        // 카드
+        ctx.drawImage(img,0,0,256,384);
+
+        // 앞 glow
+        const front = ctx.createRadialGradient(128,192,60,128,192,180);
+        front.addColorStop(0,"transparent");
+        front.addColorStop(0.7,color);
+        front.addColorStop(1,"transparent");
+
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = front;
+        ctx.fillRect(0,0,256,384);
+
+        ctx.globalCompositeOperation = "source-over";
+
+        // 텍스트
+        ctx.fillStyle="black";
+        ctx.font="bold 20px sans-serif";
+        ctx.textAlign="center";
+
+        ctx.fillText(m.name,128,320);
+        ctx.fillText("⭐".repeat(m.star),128,350);
+
+        box.appendChild(canvas);
+    };
+});
+</script>
+
+</body>
+</html>

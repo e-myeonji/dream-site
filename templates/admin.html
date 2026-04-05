@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#1a1a2e;color:white;padding:40px;">
+
+<h1>메뉴 등록</h1>
+
+<form method="POST" enctype="multipart/form-data">
+<div id="box">
+    <div>
+        이름 <input name="name">
+        별점
+        <select name="star">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+        </select>
+        이미지 <input type="file" name="image">
+    </div>
+</div>
+
+<button type="button" onclick="add()">추가</button>
+<button type="submit">저장</button>
+</form>
+
+<form method="POST" action="/admin/reset">
+<button style="background:red;color:white;">초기화</button>
+</form>
+
+<script>
+function add(){
+    const d=document.createElement("div");
+    d.innerHTML=`
+    이름 <input name="name">
+    별점
+    <select name="star">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+    </select>
+    이미지 <input type="file" name="image">`;
+    document.getElementById("box").appendChild(d);
+}
+</script>
+
+</body>
+</html>

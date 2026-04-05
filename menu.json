@@ -1,0 +1,37 @@
+[
+  {
+    "name": "찰기장밥",
+    "star": 2,
+    "image": "111.png"
+  },
+  {
+    "name": "국물닭볶음탕",
+    "star": 4,
+    "image": "222.png"
+  },
+  {
+    "name": "건파래볶음",
+    "star": 3,
+    "image": "333.png"
+  },
+  {
+    "name": "도토리묵야채샐러드",
+    "star": 3,
+    "image": "444.png"
+  },
+  {
+    "name": "시금치나물",
+    "star": 2,
+    "image": "555.png"
+  },
+  {
+    "name": "배추김치",
+    "star": 2,
+    "image": "kimchi.png"
+  },
+  {
+    "name": "우유생크림코르네파이",
+    "star": 5,
+    "image": "777.png"
+  }
+]
