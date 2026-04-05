@@ -1,27 +1,68 @@
 from flask import Flask, render_template, request, redirect, url_for
-import json, os
-from werkzeug.utils import secure_filename
+import os
+import cloudinary
+import cloudinary.uploader
+import psycopg2
+import psycopg2.extras
 
 app = Flask(__name__)
 
-DATA_FILE = "menu.json"
-UPLOAD_FOLDER = "static/cards"
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+# 🔥 Cloudinary
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUD_NAME"),
+    api_key=os.environ.get("API_KEY"),
+    api_secret=os.environ.get("API_SECRET")
+)
+
+# 🔥 DB 연결
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+def get_conn():
+    return psycopg2.connect(DATABASE_URL)
+
+# 🔥 테이블 생성 (처음 1번 실행)
+def init_db():
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS menu (
+            id SERIAL PRIMARY KEY,
+            name TEXT,
+            star INTEGER,
+            image TEXT
+        )
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+init_db()
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "1234")
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
+# 🔥 메뉴 불러오기
 def load_menu():
-    try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return []
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM menu")
+    data = cur.fetchall()
+    cur.close()
+    conn.close()
+    return data
 
-def save_menu(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+# 🔥 메뉴 저장 (전체 덮어쓰기)
+def save_menu(menu):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM menu")
+    for m in menu:
+        cur.execute(
+            "INSERT INTO menu (name, star, image) VALUES (%s,%s,%s)",
+            (m["name"], m["star"], m["image"])
+        )
+    conn.commit()
+    cur.close()
+    conn.close()
 
 @app.route("/")
 def index():
@@ -44,15 +85,16 @@ def admin():
             if not n.strip():
                 continue
 
-            filename = secure_filename(img.filename)
+            image_url = ""
 
-            if filename:
-                img.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+            if img and img.filename:
+                res = cloudinary.uploader.upload(img)
+                image_url = res["secure_url"]
 
             menu.append({
                 "name": n,
                 "star": int(s),
-                "image": filename
+                "image": image_url
             })
 
         save_menu(menu)
@@ -62,7 +104,12 @@ def admin():
 
 @app.route("/admin/reset", methods=["POST"])
 def reset():
-    save_menu([])
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM menu")
+    conn.commit()
+    cur.close()
+    conn.close()
     return redirect("/admin?pw=1234")
 
 @app.route("/animation")
@@ -79,6 +126,5 @@ def reveal():
 def result():
     return render_template("result.html")
 
-# 🔥 Render용 (중요)
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

@@ -109,7 +109,7 @@ function createCard(data){
 
     const loader = new THREE.TextureLoader();
 
-    loader.load("/static/cards/"+data.image+"?v="+Date.now(), tex=>{
+    loader.load(data.image
 
         const canvas = document.createElement("canvas");
         canvas.width = 512;

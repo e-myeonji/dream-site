@@ -108,7 +108,7 @@ data.forEach(m=>{
     const ctx = canvas.getContext("2d");
 
     const img = new Image();
-    img.src="/static/cards/"+m.image;
+    img.src = m.image;
 
     img.onload=()=>{
 
