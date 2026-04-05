@@ -2,90 +2,39 @@ from flask import Flask, render_template, request, redirect, url_for
 import os
 import cloudinary
 import cloudinary.uploader
-import psycopg2
-import psycopg2.extras
+from supabase import create_client
 
 app = Flask(__name__)
 
-# 🔥 환경변수 확인 로그 (디버깅용)
-print("DB:", os.environ.get("DATABASE_URL"))
-print("CLOUD:", os.environ.get("CLOUD_NAME"))
-
-# 🔥 Cloudinary 설정
+# 🔥 Cloudinary
 cloudinary.config(
     cloud_name=os.environ.get("CLOUD_NAME"),
     api_key=os.environ.get("API_KEY"),
     api_secret=os.environ.get("API_SECRET")
 )
 
-# 🔥 DB 연결
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-def get_conn():
-    try:
-        return psycopg2.connect(DATABASE_URL)
-    except Exception as e:
-        print("DB CONNECTION ERROR:", e)
-        return None
-
-# 🔥 테이블 생성 (안정화 버전)
-def init_db():
-    try:
-        conn = get_conn()
-        if conn is None:
-            return
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS menu (
-                id SERIAL PRIMARY KEY,
-                name TEXT,
-                star INTEGER,
-                image TEXT
-            )
-        """)
-        conn.commit()
-        cur.close()
-        conn.close()
-        print("DB INIT SUCCESS")
-    except Exception as e:
-        print("DB INIT ERROR:", e)
-
-init_db()
+# 🔥 Supabase
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "1234")
 
 # 🔥 메뉴 불러오기
 def load_menu():
     try:
-        conn = get_conn()
-        if conn is None:
-            return []
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM menu")
-        data = cur.fetchall()
-        cur.close()
-        conn.close()
-        return data
+        res = supabase.table("menu").select("*").execute()
+        return res.data
     except Exception as e:
         print("LOAD ERROR:", e)
         return []
 
-# 🔥 메뉴 저장
+# 🔥 메뉴 저장 (전체 교체)
 def save_menu(menu):
     try:
-        conn = get_conn()
-        if conn is None:
-            return
-        cur = conn.cursor()
-        cur.execute("DELETE FROM menu")
+        supabase.table("menu").delete().neq("id", 0).execute()
         for m in menu:
-            cur.execute(
-                "INSERT INTO menu (name, star, image) VALUES (%s,%s,%s)",
-                (m["name"], m["star"], m["image"])
-            )
-        conn.commit()
-        cur.close()
-        conn.close()
+            supabase.table("menu").insert(m).execute()
         print("SAVE SUCCESS")
     except Exception as e:
         print("SAVE ERROR:", e)
@@ -118,7 +67,7 @@ def admin():
                     res = cloudinary.uploader.upload(img)
                     image_url = res["secure_url"]
             except Exception as e:
-                print("IMAGE UPLOAD ERROR:", e)
+                print("IMAGE ERROR:", e)
 
             menu.append({
                 "name": n,
@@ -133,17 +82,7 @@ def admin():
 
 @app.route("/admin/reset", methods=["POST"])
 def reset():
-    try:
-        conn = get_conn()
-        if conn:
-            cur = conn.cursor()
-            cur.execute("DELETE FROM menu")
-            conn.commit()
-            cur.close()
-            conn.close()
-    except Exception as e:
-        print("RESET ERROR:", e)
-
+    supabase.table("menu").delete().neq("id", 0).execute()
     return redirect("/admin?pw=1234")
 
 @app.route("/animation")
