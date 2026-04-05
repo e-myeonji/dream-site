@@ -7,7 +7,11 @@ import psycopg2.extras
 
 app = Flask(__name__)
 
-# 🔥 Cloudinary
+# 🔥 환경변수 확인 로그 (디버깅용)
+print("DB:", os.environ.get("DATABASE_URL"))
+print("CLOUD:", os.environ.get("CLOUD_NAME"))
+
+# 🔥 Cloudinary 설정
 cloudinary.config(
     cloud_name=os.environ.get("CLOUD_NAME"),
     api_key=os.environ.get("API_KEY"),
@@ -18,23 +22,33 @@ cloudinary.config(
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_conn():
-    return psycopg2.connect(DATABASE_URL)
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except Exception as e:
+        print("DB CONNECTION ERROR:", e)
+        return None
 
-# 🔥 테이블 생성 (처음 1번 실행)
+# 🔥 테이블 생성 (안정화 버전)
 def init_db():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS menu (
-            id SERIAL PRIMARY KEY,
-            name TEXT,
-            star INTEGER,
-            image TEXT
-        )
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        conn = get_conn()
+        if conn is None:
+            return
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS menu (
+                id SERIAL PRIMARY KEY,
+                name TEXT,
+                star INTEGER,
+                image TEXT
+            )
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("DB INIT SUCCESS")
+    except Exception as e:
+        print("DB INIT ERROR:", e)
 
 init_db()
 
@@ -42,27 +56,39 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "1234")
 
 # 🔥 메뉴 불러오기
 def load_menu():
-    conn = get_conn()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM menu")
-    data = cur.fetchall()
-    cur.close()
-    conn.close()
-    return data
+    try:
+        conn = get_conn()
+        if conn is None:
+            return []
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM menu")
+        data = cur.fetchall()
+        cur.close()
+        conn.close()
+        return data
+    except Exception as e:
+        print("LOAD ERROR:", e)
+        return []
 
-# 🔥 메뉴 저장 (전체 덮어쓰기)
+# 🔥 메뉴 저장
 def save_menu(menu):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM menu")
-    for m in menu:
-        cur.execute(
-            "INSERT INTO menu (name, star, image) VALUES (%s,%s,%s)",
-            (m["name"], m["star"], m["image"])
-        )
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        conn = get_conn()
+        if conn is None:
+            return
+        cur = conn.cursor()
+        cur.execute("DELETE FROM menu")
+        for m in menu:
+            cur.execute(
+                "INSERT INTO menu (name, star, image) VALUES (%s,%s,%s)",
+                (m["name"], m["star"], m["image"])
+            )
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("SAVE SUCCESS")
+    except Exception as e:
+        print("SAVE ERROR:", e)
 
 @app.route("/")
 def index():
@@ -87,9 +113,12 @@ def admin():
 
             image_url = ""
 
-            if img and img.filename:
-                res = cloudinary.uploader.upload(img)
-                image_url = res["secure_url"]
+            try:
+                if img and img.filename:
+                    res = cloudinary.uploader.upload(img)
+                    image_url = res["secure_url"]
+            except Exception as e:
+                print("IMAGE UPLOAD ERROR:", e)
 
             menu.append({
                 "name": n,
@@ -104,12 +133,17 @@ def admin():
 
 @app.route("/admin/reset", methods=["POST"])
 def reset():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM menu")
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        conn = get_conn()
+        if conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM menu")
+            conn.commit()
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print("RESET ERROR:", e)
+
     return redirect("/admin?pw=1234")
 
 @app.route("/animation")
