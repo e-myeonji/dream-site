@@ -8,7 +8,7 @@ DATA_FILE = "menu.json"
 UPLOAD_FOLDER = "static/cards"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-ADMIN_PASSWORD = "1234"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "1234")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -79,5 +79,6 @@ def reveal():
 def result():
     return render_template("result.html")
 
+# 🔥 Render용 (중요)
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
