@@ -3,38 +3,63 @@
 <head>
 <meta charset="UTF-8">
 <title>두근두근 급식 가챠</title>
+
 <style>
 body{
     margin:0;
-    background: linear-gradient(135deg,#1a1a2e,#16213e);
-    color:white;
-    font-family: 'Segoe UI', sans-serif;
     height:100vh;
     overflow:hidden;
+    font-family: 'Segoe UI', sans-serif;
+    color:white;
+
+    /* 🔥 배경 업그레이드 */
+    background: radial-gradient(circle at top, #2a2a5a, #0f172a 70%);
 }
 
-/* 코인 바 */
+/* ✨ 배경 빛 효과 */
+.bg-glow{
+    position:absolute;
+    width:600px;
+    height:600px;
+    background: radial-gradient(circle, rgba(58,134,255,0.4), transparent);
+    top:-200px;
+    left:-200px;
+    filter: blur(120px);
+}
+
+.bg-glow2{
+    position:absolute;
+    width:500px;
+    height:500px;
+    background: radial-gradient(circle, rgba(233,69,96,0.4), transparent);
+    bottom:-200px;
+    right:-200px;
+    filter: blur(120px);
+}
+
+/* 🪙 코인 */
 #coinBar{
     position:absolute;
     top:20px;
     left:20px;
-    background:white;
-    color:#222;
     display:flex;
     align-items:center;
     gap:10px;
-    padding:10px 16px;
-    border-radius:12px;
-    box-shadow:0 5px 15px rgba(0,0,0,0.4);
-    font-weight:bold;
-}
 
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    padding:12px 18px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,0.2);
+
+    box-shadow:0 8px 20px rgba(0,0,0,0.4);
+}
 
 .coinIcon{
     font-size:18px;
 }
 
-/* 우측 상단 */
+/* 🔧 우측 상단 */
 .top-right{
     position:absolute;
     top:20px;
@@ -42,63 +67,100 @@ body{
 }
 
 .small-btn{
-    background:#444;
+    background: rgba(255,255,255,0.1);
+    border:1px solid rgba(255,255,255,0.2);
     color:white;
-    border:none;
-    padding:8px 12px;
-    margin-left:8px;
-    border-radius:8px;
+    padding:8px 14px;
+    border-radius:10px;
     cursor:pointer;
     font-size:12px;
+    transition:0.2s;
 }
 
-/* 중앙 타이틀 */
+.small-btn:hover{
+    background: rgba(255,255,255,0.2);
+}
+
+/* 🎯 타이틀 */
 .center-title{
     position:absolute;
     top:50%;
     left:50%;
-    transform:translate(-50%,-60%);
-    font-size:48px;
+    transform:translate(-50%,-70%);
+
+    font-size:52px;
     font-weight:900;
     text-align:center;
-    background: linear-gradient(90deg,#e94560,#3a86ff);
+
+    background: linear-gradient(90deg,#ff4d6d,#3a86ff,#8338ec);
     -webkit-background-clip:text;
     -webkit-text-fill-color:transparent;
+
+    text-shadow:0 0 20px rgba(255,255,255,0.1);
 }
 
-/* 하단 버튼 */
+/* 🎮 버튼 영역 */
 .bottom-buttons{
     position:absolute;
-    bottom:40px;
-    right:40px;
+    bottom:50px;
+    right:50px;
     display:flex;
-    gap:15px;
+    gap:20px;
 }
 
-/* 큰 버튼 */
+/* 🔥 큰 버튼 */
 .big-btn{
-    padding:18px 28px;
+    padding:20px 34px;
     font-size:18px;
     font-weight:bold;
     border:none;
-    border-radius:12px;
+    border-radius:14px;
     cursor:pointer;
+
+    color:white;
+    position:relative;
+    overflow:hidden;
+
+    transition:0.2s;
 }
 
+/* 버튼 공통 glow */
+.big-btn::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+    opacity:0;
+    transition:0.3s;
+}
+
+.big-btn:hover::before{
+    opacity:1;
+}
+
+.big-btn:hover{
+    transform: translateY(-3px) scale(1.03);
+}
+
+/* 🔴 1개 뽑기 */
 #singleBtn{
-    background:#e94560;
+    background: linear-gradient(135deg,#e94560,#ff6b81);
+    box-shadow:0 10px 25px rgba(233,69,96,0.5);
 }
 
+/* 🔵 연속 뽑기 */
 #multiBtn{
-    background:#3a86ff;
+    background: linear-gradient(135deg,#3a86ff,#00c6ff);
+    box-shadow:0 10px 25px rgba(58,134,255,0.5);
 }
 </style>
 </head>
 
 <body>
 
-<!-- 🔊 사운드 -->
-<audio id="clickSound" src="/static/click.mp3"></audio>
+<!-- 배경 효과 -->
+<div class="bg-glow"></div>
+<div class="bg-glow2"></div>
 
 <!-- 코인 -->
 <div id="coinBar">
@@ -112,19 +174,18 @@ body{
     <button class="small-btn" onclick="resetData()">RESET</button>
 </div>
 
-<!-- 중앙 -->
+<!-- 타이틀 -->
 <div class="center-title">
     두근두근 급식 가챠
 </div>
 
-<!-- 하단 버튼 -->
+<!-- 버튼 -->
 <div class="bottom-buttons">
     <button id="singleBtn" class="big-btn" onclick="tryDraw(1)">1개 뽑기</button>
     <button id="multiBtn" class="big-btn"></button>
 </div>
 
 <script>
-const ADMIN_PW = "1234";
 const totalMenu = {{count}};
 
 let savedCount = localStorage.getItem("menuCount");
@@ -146,14 +207,6 @@ const coinText = document.getElementById("coinText");
 const multiBtn = document.getElementById("multiBtn");
 const singleBtn = document.getElementById("singleBtn");
 
-/* 🔊 사운드 */
-const clickSound = document.getElementById("clickSound");
-
-function playClick(){
-    clickSound.currentTime = 0;
-    clickSound.play();
-}
-
 function updateUI(){
     coinText.innerText = coins;
 
@@ -163,11 +216,13 @@ function updateUI(){
         return;
     }
 
-    singleBtn.style.display = "inline-block";
-    multiBtn.style.display = "inline-block";
-
-    multiBtn.innerText = coins + "연속 뽑기";
-    multiBtn.onclick = () => tryDraw(coins);
+    if(coins > 1){
+        multiBtn.style.display = "inline-block";
+        multiBtn.innerText = coins + "연속 뽑기";
+        multiBtn.onclick = () => tryDraw(coins);
+    } else {
+        multiBtn.style.display = "none";
+    }
 }
 
 updateUI();
@@ -180,32 +235,33 @@ function tryDraw(n){
 
     coins -= n;
     localStorage.setItem("coins", coins);
-
-    clickSound.currentTime = 0;
-    clickSound.play();
-
-    clickSound.onended = () => {
-        location.href = "animation?count=" + n;
-    };
+    location.href = "animation?count=" + n;
 }
 
+// 🔐 관리자 로그인
 function goAdmin(){
-    playClick();
     const pw = prompt("비밀번호 입력");
-    if(pw){
-        location.href = "admin?pw=" + pw;
-    }
+
+    if(!pw) return;
+
+    fetch("/login",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({pw})
+    })
+    .then(res=>{
+        if(res.ok){
+            location.href="/admin";
+        }else{
+            alert("비밀번호 틀림");
+        }
+    });
 }
 
+// 🔄 로컬 초기화
 function resetData(){
-    playClick();
-    const pw = prompt("비밀번호 입력");
-    if(pw === ADMIN_PW){
-        localStorage.clear();
-        location.reload();
-    } else {
-        alert("비밀번호 틀림");
-    }
+    localStorage.clear();
+    location.reload();
 }
 </script>
 
