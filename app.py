@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 import os
 import cloudinary
 import cloudinary.uploader
 from supabase import create_client
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev_key")
 
 # 🔥 Cloudinary
 cloudinary.config(
@@ -18,7 +19,9 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "1234")
+# 🔥 관리자 비번 (환경변수)
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+
 
 # 🔥 메뉴 불러오기
 def load_menu():
@@ -29,24 +32,39 @@ def load_menu():
         print("LOAD ERROR:", e)
         return []
 
-# 🔥 메뉴 저장 (전체 교체)
+
+# 🔥 메뉴 저장
 def save_menu(menu):
     try:
         supabase.table("menu").delete().neq("id", 0).execute()
         for m in menu:
             supabase.table("menu").insert(m).execute()
-        print("SAVE SUCCESS")
     except Exception as e:
         print("SAVE ERROR:", e)
 
+
+# 🔥 로그인
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    if data.get("pw") == ADMIN_PASSWORD:
+        session["admin"] = True
+        return "", 200
+    return "", 403
+
+
+# 🔥 메인
 @app.route("/")
 def index():
     menu = load_menu()
     return render_template("index.html", count=len(menu))
 
+
+# 🔥 관리자
 @app.route("/admin", methods=["GET","POST"])
 def admin():
-    if request.args.get("pw") != ADMIN_PASSWORD:
+
+    if not session.get("admin"):
         return "접근 불가"
 
     if request.method == "POST":
@@ -80,24 +98,37 @@ def admin():
 
     return render_template("admin.html")
 
+
+# 🔥 초기화
 @app.route("/admin/reset", methods=["POST"])
 def reset():
-    supabase.table("menu").delete().neq("id", 0).execute()
-    return redirect("/admin?pw=1234")
 
+    if not session.get("admin"):
+        return "접근 불가"
+
+    supabase.table("menu").delete().neq("id", 0).execute()
+    return redirect("/admin")
+
+
+# 🔥 애니메이션
 @app.route("/animation")
 def animation():
     count = request.args.get("count", 1)
     return render_template("animation.html", count=count)
 
+
+# 🔥 reveal
 @app.route("/reveal")
 def reveal():
     menu = load_menu()
     return render_template("reveal.html", menu=menu)
 
+
+# 🔥 결과
 @app.route("/result")
 def result():
     return render_template("result.html")
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
